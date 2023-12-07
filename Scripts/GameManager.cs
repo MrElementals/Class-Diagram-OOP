@@ -1,13 +1,8 @@
-using System.Collections;
-using System.Collections.Generic;
 using System;
-using TMPro;
-using UnityEngine;
-using UnityEngine.SceneManagement;
-using UnityEngine.UI;
-using UnityEngine.SocialPlatforms.Impl;
+using System.Collections.Generic;
 using System.IO;
-
+using UnityEngine;
+using UnityEngine.UI;
 public class GameManager : MonoBehaviour
 {
     bool stopwatchActive = false;
@@ -25,14 +20,8 @@ public class GameManager : MonoBehaviour
     public GameObject Goal;
     public Text winner;
 
-    public List<float> list;
-
-
-
     // Start is called before the first frame update
-
-
-    public void Start()
+    private void Start()
     {
         if (started)
         {
@@ -41,26 +30,20 @@ public class GameManager : MonoBehaviour
         else
         {
             SetState(GameStates.MainMenu);
-
         }
 
         started = true;
 
-        Load();
+        HighScoreTable.Instance.Load();
 
-
-        if (list.Count > 10)
+        if (HighScoreTable.Instance.Count > 10)
         {
-            list.Sort();
-            list.Reverse();
-            list.RemoveAt(list.Count - 1);
-
+            HighScoreTable.Instance.TrimListToMaxSize();
         }
-
     }
+
     private void Update()
     {
-
         if (isRunning && !Finish.victory)
         {
             if (stopwatchActive == true)
@@ -76,24 +59,20 @@ public class GameManager : MonoBehaviour
         {
             if (stopwatchActive == true)
             {
-
                 Debug.Log("Timer Finished");
-                list.Add(time2);
-                Save();
+                HighScoreTable.Instance.AddScore(time2);
+                HighScoreTable.Instance.Save();
                 stopwatchActive = false;
-
             }
 
             SetState(GameStates.Winner);
-
         }
     }
-
 
     public void RestGame()
     {
         Finish.victory = false;
-        SceneManager.LoadScene(0);
+        UnityEngine.SceneManagement.SceneManager.LoadScene(0);
     }
 
     public void PlayGame()
@@ -132,11 +111,45 @@ public class GameManager : MonoBehaviour
         Destroy(Box);
         isRunning = true;
         stopwatchActive = true;
-
     }
-    private void Save()
-    {
+}
 
+public enum GameStates
+{
+    MainMenu,
+    Game,
+    Winner
+}
+
+public class HighScoreTable : IScoreSaveLoad
+{
+    private static HighScoreTable _instance;
+
+    public static HighScoreTable Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = new HighScoreTable();
+            }
+            return _instance;
+        }
+    }
+
+    private List<float> list;
+
+    private HighScoreTable(int maxSize)
+    {
+        list = new List<float>(maxSize);
+    }
+
+    public HighScoreTable() : this(10)
+    {
+    }
+
+    public void Save()
+    {
         TrimListToMaxSize();
 
         string path = Application.dataPath + "/Highscore.txt";
@@ -149,7 +162,8 @@ public class GameManager : MonoBehaviour
         File.WriteAllText(path, content);
         Debug.Log("Save successful");
     }
-    private void Load()
+
+    public void Load()
     {
         string path = Application.dataPath + "/Highscore.txt";
         if (!File.Exists(path))
@@ -177,10 +191,14 @@ public class GameManager : MonoBehaviour
         }
 
         Debug.Log("Load successful");
-
     }
 
-    private void TrimListToMaxSize()
+    public void AddScore(float score)
+    {
+        list.Add(score);
+    }
+
+    public void TrimListToMaxSize()
     {
         if (list.Count > 10)
         {
@@ -191,36 +209,16 @@ public class GameManager : MonoBehaviour
                 list.RemoveAt(list.Count - 1);
             }
         }
-
     }
-}
-public enum GameStates
-{
-    MainMenu,
-    Game,
-    Winner
-}
 
-/*
- 
-using System.Collections.Generic;
-using UnityEngine;
-
-public class NewBehaviourScript : MonoBehaviour
-{
-    public List<int> list = new List<int> { 0,0,0,0,0,0,0,0,0,0};
-    int score = 100;
-    // Start is called before the first frame update
-    void Start()
+    public int Count
     {
-        list.Add(score);
-        list.Sort();
-        if(list.Count > 10)
-        {
-            list.RemoveAt(list.Count-1);
-        }
-        //save
+        get { return list.Count; }
     }
 }
 
-*/ 
+public interface IScoreSaveLoad
+{
+    void Save();
+    void Load();
+}
